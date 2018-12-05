@@ -39,4 +39,6 @@ pub enum BlockchainError {
     MissingUTXO(Hash),
     #[fail(display = "Invalid transaction signature.")]
     InvalidTransactionSignature,
+    #[fail(display = "Invalid bulletproof.")]
+    InvalidBulletProof,
 }

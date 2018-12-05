@@ -648,7 +648,9 @@ impl NodeService {
                         self.handle_init()?;
                     }
                     NodeMessage::PaymentRequest { recipient, amount } => {
-                        self.handle_payment_request(&recipient, amount)?;
+                        if let Err(e) = self.handle_payment_request(&recipient, amount) {
+                            error!("Invalid payment request: {}", e);
+                        }
                     }
                     NodeMessage::SubscribeBalance(tx) => {
                         self.handle_subscribe_balance(tx)?;

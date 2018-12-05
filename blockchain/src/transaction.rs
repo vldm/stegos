@@ -30,6 +30,7 @@ use stegos_crypto::curve1174::cpt::{
 use stegos_crypto::curve1174::ecpt::ECp;
 use stegos_crypto::curve1174::fields::Fr;
 use stegos_crypto::hash::{Hash, Hashable, Hasher};
+use stegos_crypto::bulletproofs::validate_range_proof;
 
 /// Transaction body.
 #[derive(Clone, Debug)]
@@ -174,10 +175,12 @@ impl Transaction {
 
         // -\sum{C_j} for j in txouts
         for txout in &self.body.txouts {
+            if !validate_range_proof(&txout.proof) {
+                return Err(BlockchainError::InvalidBulletProof.into());
+            }
             let pedersen_commitment: Pt = txout.proof.pedersen_commitment();
             let pedersen_commitment: ECp = Pt::decompress(pedersen_commitment)?;
             eff_pkey -= pedersen_commitment;
-            // TODO: add bullet proof validation
         }
 
         // TODO: add fee
