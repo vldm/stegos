@@ -23,6 +23,7 @@
 
 use failure::{Error, Fail};
 use std::fmt;
+use std::mem::size_of;
 use std::mem::transmute;
 use stegos_crypto::bulletproofs::{make_range_proof, BulletProof};
 use stegos_crypto::curve1174::cpt::{
@@ -178,6 +179,11 @@ impl Output {
 
         Ok((delta, gamma, amount))
     }
+
+    /// Returns approximate the size of a UTXO in bytes.
+    pub fn size_of(&self) -> usize {
+        size_of::<Output>() + self.payload.ctxt.len() * size_of::<u8>()
+    }
 }
 
 impl fmt::Display for Output {
@@ -224,6 +230,7 @@ pub mod tests {
         let (_delta2, gamma2, amount2) = output
             .decrypt_payload(&skey2)
             .expect("decryption successful");
+        assert!(output.size_of() > 1200 || output.size_of() < 1400);
 
         assert_eq!(amount, amount2);
         assert_eq!(gamma, gamma2);
