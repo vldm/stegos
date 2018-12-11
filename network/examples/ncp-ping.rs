@@ -50,10 +50,7 @@ fn main() {
             let plain_text = upgrade::PlainTextConfig;
 
             let secio = {
-                let private_key = include_bytes!("test-rsa-private-key.pk8");
-                let public_key = include_bytes!("test-rsa-public-key.der").to_vec();
-                let keypair =
-                    libp2p::secio::SecioKeyPair::rsa_from_pkcs8(private_key, public_key).unwrap();
+                let keypair = libp2p::secio::SecioKeyPair::secp256k1_generated().unwrap();
                 libp2p::secio::SecioConfig::new(keypair)
             };
 

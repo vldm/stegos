@@ -29,8 +29,7 @@ use futures::sync::mpsc;
 use futures::{future, Poll, Sink, Stream};
 use libp2p;
 use libp2p::core::{either::EitherOutput, upgrade};
-use libp2p::core::{ConnectionUpgrade, Endpoint, Multiaddr, PublicKey, Transport};
-use libp2p::peerstore::PeerId;
+use libp2p::core::{ConnectionUpgrade, Endpoint, Multiaddr, Transport};
 use libp2p::secio::SecioOutput;
 use libp2p::tcp::TcpConfig;
 use libp2p::websocket::WsConfig;
@@ -168,6 +167,8 @@ fn run_node(rt: &mut Runtime) -> Node {
         .nth(1)
         .unwrap_or("/ip4/0.0.0.0/tcp/10050".to_owned());
 
+    let keypair = libp2p::secio::SecioKeyPair::secp256k1_generated().unwrap();
+    let my_id = keypair.to_peer_id();
     // We start by creating a `TcpConfig` that indicates that we want TCP/IP.
     let transport = TcpConfig::new()
         // In addition to TCP/IP, we also want to support the Websockets protocol on top of TCP/IP.
@@ -177,13 +178,7 @@ fn run_node(rt: &mut Runtime) -> Node {
         // On top of TCP/IP, we will use either the plaintext protocol or the secio protocol,
         // depending on which one the remote supports.
         .with_upgrade({
-            let secio = {
-                let private_key = include_bytes!("test-rsa-private-key.pk8");
-                let public_key = include_bytes!("test-rsa-public-key.der").to_vec();
-                let keypair =
-                    libp2p::secio::SecioKeyPair::rsa_from_pkcs8(private_key, public_key).unwrap();
-                libp2p::secio::SecioConfig::new(keypair)
-            };
+            let secio = { libp2p::secio::SecioConfig::new(keypair) };
 
             upgrade::map_with_addr(secio, |out: SecioOutput<_>, addr| {
                 println!("Remote key: {:?}", out.remote_key);
@@ -207,10 +202,6 @@ fn run_node(rt: &mut Runtime) -> Node {
 
     // We now prepare the protocol that we are going to negotiate with nodes that open a connection
     // or substream to our server.
-    let my_id = {
-        let key = (0..2048).map(|_| rand::random::<u8>()).collect::<Vec<_>>();
-        PeerId::from_public_key(PublicKey::Rsa(key))
-    };
 
     let (floodsub_upgrade, floodsub_rx) = libp2p::floodsub::FloodSubUpgrade::new(my_id);
 
