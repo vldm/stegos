@@ -34,7 +34,7 @@ use std::ops::RangeBounds;
 /// The Undo record.
 /// Used to undo changes when a map is rolled back.
 #[derive(Debug, Clone)]
-enum UndoRecord<K, V, LSN>
+pub enum UndoRecord<K, V, LSN>
 where
     K: Debug,
     V: Debug,
@@ -176,11 +176,12 @@ where
     /// Finalizes this map and discards all undo records.
     /// No rollback operations are possible after the checkpoint.
     ///
-    pub fn checkpoint(&mut self) {
+    pub fn checkpoint(&mut self) -> Vec<UndoRecord<K, V, LSN>> {
         let checkpoint_lsn = self.current_lsn();
-        self.undo.clear();
+        let undo = std::mem::replace(&mut self.undo, Vec::new());
         self.checkpoint_lsn = checkpoint_lsn;
         assert_eq!(self.current_lsn(), self.checkpoint_lsn());
+        undo
     }
 
     ///
@@ -278,6 +279,13 @@ where
     /// Returns pointer to inner map.
     pub fn inner(&self) -> &BTreeMap<K, V> {
         &self.map
+    }
+
+    /// Reset state and rollback to initial state.
+    pub fn reset(&mut self) {
+        self.map.clear();
+        self.undo.clear();
+        self.checkpoint_lsn = Default::default();
     }
 }
 

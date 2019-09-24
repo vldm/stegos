@@ -30,7 +30,7 @@ use crate::election::{self, ElectionResult};
 use crate::error::*;
 use crate::escrow::*;
 use crate::metrics;
-use crate::mvcc::MultiVersionedMap;
+use crate::mvcc::{MultiVersionedMap, UndoRecord};
 use crate::output::*;
 use crate::timestamp::Timestamp;
 use crate::transaction::{CoinbaseTransaction, ServiceAwardTransaction, Transaction};
@@ -49,9 +49,11 @@ use stegos_crypto::scc::{Fr, Pt, PublicKey};
 use stegos_crypto::vdf::VDF;
 use stegos_crypto::{pbc, scc};
 use stegos_serialization::traits::ProtoConvert;
+use rocksdb::{WriteBatch, ColumnFamily};
 
 pub type ViewCounter = u32;
 pub type ValidatorId = u32;
+
 
 /// Saved information about validator, and its slotcount in epoch.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -162,7 +164,7 @@ pub(crate) struct Balance {
 }
 
 /// A special offset used to tore Macro Blocks on the disk.
-const MACRO_BLOCK_OFFSET: u32 = 4294967295u32;
+const MACRO_BLOCK_OFFSET: u32 = u32::max_value();
 
 #[derive(Debug, Default, Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) struct LSN(pub(crate) u64, pub(crate) u32); // use `struct` to disable explicit casts.
@@ -183,6 +185,24 @@ pub struct OutputRecovery {
     pub is_final: bool,
     pub timestamp: Timestamp,
 }
+
+// colon families.
+const BLOCK_BY_HASH: &'static str = "block_by_hash";
+const OUTPUT_BY_HASH: &'static str = "output_by_hash";
+const ESCROW: &'static str = "escrow";
+
+const SERVICE_AWARD: &'static str = "service_award";
+const EPOCH_INFOS: &'static str = "epoch_infos";
+const META: &'static str = "META";
+
+const COLON_FAMILIES: &[&'static str] = &[BLOCK_BY_HASH, OUTPUT_BY_HASH, ESCROW,
+    SERVICE_AWARD, EPOCH_INFOS, META];
+
+/// Meta table indexes
+const BALANCE: &'static str = "balance";
+const EPOCH: &'static str = "epoch";
+const ELECTION_RESULT: &'static str = "election_result";
+
 
 /// The blockchain database.
 pub struct Blockchain {
@@ -258,7 +278,11 @@ impl Blockchain {
         //
         // Storage.
         //
-        let database = rocksdb::DB::open_default(chain_dir)?;
+
+        let mut opts = rocksdb::Options::default();
+        opts.create_if_missing(true);
+        opts.create_missing_column_families(true);
+        let database = rocksdb::DB::open_cf(&opts, chain_dir, COLON_FAMILIES).expect("couldn't open database");
         let block_by_hash: BlockByHashMap = BlockByHashMap::new();
         let output_by_hash: OutputByHashMap = OutputByHashMap::new();
         let mut balance: BalanceMap = BalanceMap::new();
@@ -1241,14 +1265,21 @@ impl Blockchain {
                 .set(*stake);
         }
 
+        let cf_block_by_hash = self.database.cf_handle(BLOCK_BY_HASH).unwrap();
+        let cf_output_by_hash = self.database.cf_handle(OUTPUT_BY_HASH).unwrap();
+        let cf_escrow = self.database.cf_handle(ESCROW).unwrap();
+        let mut batch = unimplemented!();
         //
         // Finalize storage.
         //
-        self.block_by_hash.checkpoint();
-        self.output_by_hash.checkpoint();
-        self.balance.checkpoint();
-        self.escrow.checkpoint();
-        self.election_result.checkpoint();
+        Self::write_log(&mut batch, cf_block_by_hash, self.block_by_hash.checkpoint())?;
+        Self::write_log(&mut batch, cf_output_by_hash, self.output_by_hash.checkpoint())?;
+        Self::write_log(&mut batch, cf_escrow, self.escrow.checkpoint())?;
+        let _ = self.election_result.checkpoint()?;
+        let _ = self.balance.checkpoint();
+        Self::write_meta(&mut batch, BALANCE, self.balance())?;
+        Self::write_meta(&mut batch, EPOCH, self.epoch)?;
+        Self::write_meta(&mut batch, ELECTION_RESULT, self.election_result())?;
 
         let validators = self
             .election_result()
@@ -1284,6 +1315,7 @@ impl Blockchain {
         };
 
         self.epoch_infos.insert(epoch, epoch_info);
+        self.epoch_activity.reset();
 
         let mut outputs: HashMap<Hash, Output> =
             outputs.into_iter().map(|(h, (o, _k))| (h, o)).collect();
@@ -1757,6 +1789,41 @@ impl Blockchain {
         );
 
         Ok((pruned, recovered, removed, block))
+    }
+
+    fn write_meta<V>(batch: &mut WriteBatch,
+                     key: &'static str
+                     value: V)
+                     -> Result<(), BlockchainError>
+        where V: ProtoConvert,
+    {
+        unimplemented!()
+    }
+
+
+    /// Undolog is actualy a patchset, so just apply it to the block.
+    // TODO: compress patch before merging.
+    fn write_log<K, V>(batch: &mut WriteBatch,
+                       cf_handle: ColumnFamily,
+                       log: Vec<UndoRecord<K, V, LSN>>)
+        -> Result<(), BlockchainError>
+    where K: ProtoConvert,
+     V: ProtoConvert,
+    {
+        for entry in log {
+            match entry {
+                UndoRecord::Insert {key, value,} => {
+                    let key = key.into_buffer()?;
+                    let value = value.into_buffer()?;
+                    batch.put_cf(cf_handle, &key, &value)?
+                },
+                UndoRecord::Remove {key,} => {
+                    let key = key.into_buffer()?;
+                    batch.delete_cf(cf, &key)?
+                }
+            }
+        }
+        Ok(())
     }
 }
 
