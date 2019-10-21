@@ -1,4 +1,5 @@
 # Stegos Blockchain [![pipeline status](https://gitlab.aws.emotiq.ch/Stegos/stegos/badges/dev/pipeline.svg)](https://gitlab.aws.emotiq.ch/Stegos/stegos/commits/dev)  [![Coverage Status](https://codecov.io/gh/stegos/stegos/branch/dev/graphs/badge.svg)](https://codecov.io/gh/stegos/stegos)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvldm%2Fstegos.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvldm%2Fstegos?ref=badge_shield)
 
 Stegos is a completely private, confidential, and scalable cryptocurrency that’s friendly to the environment. Stegos builds and improves upon other privacy coins and can be used to send payments and data with complete confidentiality.
 
@@ -42,3 +43,7 @@ Please see our [CONTRIBUTING GUIDE](https://github.com/stegos/stegos/blob/dev/CO
 
 
 Copyright (c) 2018 Stegos AG
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvldm%2Fstegos.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvldm%2Fstegos?ref=badge_large)
