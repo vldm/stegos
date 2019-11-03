@@ -21,11 +21,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![deny(warnings)]
+#![cfg_attr(feature = "logic", deny(warnings))]
 
 pub mod api;
 mod awards;
 mod block;
+#[cfg(feature = "logic")]
 mod blockchain;
 mod config;
 pub mod election;
@@ -38,14 +39,18 @@ pub mod mvcc;
 mod output;
 pub mod protos;
 mod slashing;
+
+#[cfg(feature = "logic")]
 pub mod test;
 mod timestamp;
 mod transaction;
+mod types;
 mod validation;
 pub mod view_changes;
 
 pub use crate::awards::ValidatorAwardState;
 pub use crate::block::*;
+#[cfg(feature = "logic")]
 pub use crate::blockchain::*;
 pub use crate::config::*;
 pub use crate::election::{mix, ElectionInfo, ElectionResult, StakersGroup};
@@ -57,3 +62,4 @@ pub use crate::output::*;
 pub use crate::slashing::*;
 pub use crate::timestamp::Timestamp;
 pub use crate::transaction::*;
+pub use crate::types::*;

@@ -111,7 +111,7 @@ pub struct MerklePath(Path);
 // -------------------------------------
 
 /// Calculate the next power of two
-fn next_pow2(mut n: usize) -> usize {
+fn next_pow2(mut n: u64) -> u64 {
     n -= 1;
     n |= n >> 1;
     n |= n >> 2;
@@ -123,7 +123,7 @@ fn next_pow2(mut n: usize) -> usize {
 }
 
 /// Calculate expected tree height
-fn expected_height(n: usize) -> Height {
+fn expected_height(n: u64) -> Height {
     return next_pow2(n).trailing_zeros() as Height;
 }
 
@@ -256,7 +256,7 @@ impl<T: Hashable + fmt::Debug> Merkle<T> {
         let root = nodes.pop().unwrap();
         let height = heights.pop().unwrap();
 
-        assert_eq!(height, expected_height(src.len()));
+        assert_eq!(height, expected_height(src.len() as u64));
 
         Merkle { root }
     }
@@ -834,7 +834,7 @@ pub mod tests {
             .iter()
             .map(|(_elem, path)| *path)
             .collect::<Vec<MerklePath>>();
-        let epaths = expected_paths(data.len(), expected_height(data.len()));
+        let epaths = expected_paths(data.len(), expected_height(data.len() as u64));
         assert_eq!(paths.len(), epaths.len());
         for (left, right) in paths.iter().zip(epaths.iter()) {
             assert_eq!(*left, *right);
@@ -897,7 +897,7 @@ pub mod tests {
             .iter()
             .map(|(_elem, path)| *path)
             .collect::<Vec<MerklePath>>();
-        let epaths = expected_paths(data.len(), expected_height(data.len()));
+        let epaths = expected_paths(data.len(), expected_height(data.len() as u64));
         assert_eq!(paths.len(), epaths.len());
         for (left, right) in paths.iter().zip(epaths.iter()) {
             assert_eq!(*left, *right);
@@ -909,7 +909,7 @@ pub mod tests {
         }
 
         // Check invalid lookups
-        let missing_path = MerklePath((next_pow2(data.len()) - 1) as Path);
+        let missing_path = MerklePath((next_pow2(data.len() as u64) - 1) as Path);
         assert_eq!(tree.lookup(&missing_path), None);
 
         // Pruning

@@ -205,6 +205,7 @@ impl ProtoConvert for ElectionResult {
     }
 }
 
+#[cfg(feature = "logic")]
 impl ProtoConvert for Balance {
     type Proto = blockchain::Balance;
 

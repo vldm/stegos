@@ -22,16 +22,19 @@
 // SOFTWARE.
 
 use crate::block::{Block, MacroBlock, MacroBlockHeader, MicroBlock, VERSION};
-use crate::blockchain::{Blockchain, ChainInfo};
+#[cfg(feature = "logic")]
+use crate::blockchain::Blockchain;
 use crate::election::mix;
 use crate::error::{BlockError, BlockchainError, SlashingError, TransactionError};
 use crate::multisignature::check_multi_signature;
 use crate::output::{Output, OutputError, PublicPaymentOutput};
+#[cfg(feature = "logic")]
 use crate::slashing::confiscate_tx;
 use crate::timestamp::Timestamp;
 use crate::transaction::{
     CoinbaseTransaction, PaymentTransaction, RestakeTransaction, SlashingTransaction, Transaction,
 };
+use crate::ChainInfo;
 use log::*;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::collections::{HashMap, HashSet};
@@ -321,6 +324,7 @@ impl RestakeTransaction {
     }
 }
 
+#[cfg(feature = "logic")]
 impl SlashingTransaction {
     pub fn validate(
         &self,
@@ -416,6 +420,7 @@ impl MacroBlock {
     }
 }
 
+#[cfg(feature = "logic")]
 impl Blockchain {
     pub(crate) fn validate_block_timestamp(
         &self,

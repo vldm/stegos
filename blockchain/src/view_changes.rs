@@ -19,8 +19,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::blockchain::{Blockchain, ChainInfo};
+#[cfg(feature = "logic")]
+use crate::blockchain::Blockchain;
 use crate::multisignature::{check_multi_signature, create_multi_signature_index};
+use crate::ChainInfo;
 use bit_vec::BitVec;
 use serde_derive::{Deserialize, Serialize};
 use stegos_crypto::hash::{Hash, Hashable, Hasher};
@@ -42,6 +44,7 @@ impl ViewChangeProof {
         let (multisig, multimap) = create_multi_signature_index(signatures, validators_len);
         ViewChangeProof { multisig, multimap }
     }
+    #[cfg(feature = "logic")]
     pub fn validate(
         &self,
         chain_info: &ChainInfo,

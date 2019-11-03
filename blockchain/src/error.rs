@@ -25,14 +25,14 @@ use crate::output::OutputError;
 use crate::timestamp::Timestamp;
 use crate::view_changes::ViewChangeProof;
 use failure::Fail;
-use rocksdb;
 use std::str::Utf8Error;
 use stegos_crypto::hash::Hash;
 use stegos_crypto::pbc;
 use stegos_crypto::scc::PublicKey;
 use stegos_crypto::CryptoError;
 
-pub type StorageError = rocksdb::Error;
+#[cfg(feature = "logic")]
+pub type StorageError = crate::rocksdb::Error;
 
 #[derive(Debug, Fail)]
 pub enum BlockchainError {
@@ -67,6 +67,8 @@ pub enum BlockchainError {
         _0, _1, _2
     )]
     StakeIsLocked(pbc::PublicKey, i64, i64),
+
+    #[cfg(feature = "logic")]
     #[fail(display = "Storage I/O error={}", _0)]
     StorageError(StorageError),
     #[fail(display = "Transaction error={}", _0)]
@@ -460,6 +462,7 @@ pub enum SlashingError {
     IncorrectTxouts(Hash),
 }
 
+#[cfg(feature = "logic")]
 impl From<rocksdb::Error> for BlockchainError {
     fn from(error: rocksdb::Error) -> BlockchainError {
         BlockchainError::StorageError(error)

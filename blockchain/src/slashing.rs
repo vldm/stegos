@@ -21,7 +21,9 @@
 
 use crate::error::SlashingError;
 use crate::transaction::SlashingTransaction;
-use crate::{Blockchain, BlockchainError, MicroBlock, PublicPaymentOutput};
+use crate::MicroBlock;
+#[cfg(feature = "logic")]
+use crate::{Blockchain, BlockchainError, PublicPaymentOutput};
 use log::debug;
 use serde_derive::{Deserialize, Serialize};
 use stegos_crypto::hash::{Hash, Hashable, Hasher};
@@ -33,6 +35,7 @@ pub struct SlashingProof {
     pub block2: MicroBlock,
 }
 
+#[cfg(feature = "logic")]
 impl SlashingProof {
     pub fn new_unchecked(block1: MicroBlock, block2: MicroBlock) -> SlashingProof {
         let proof = SlashingProof { block1, block2 };
@@ -96,6 +99,7 @@ impl SlashingProof {
     }
 }
 
+#[cfg(feature = "logic")]
 pub fn confiscate_tx(
     chain: &Blockchain,
     our_key: &pbc::PublicKey, // our key, used to add change to payment utxo.
