@@ -24,6 +24,7 @@ members = [
     "wallet",
     "network/stubs/libp2p",
     "crypto/stubs/vdf_field",
+    "blockchain_explorer"
 ]
 
 [dependencies]
