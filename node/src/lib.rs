@@ -21,34 +21,50 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![deny(warnings)]
+#![cfg_attr(feature = "logic", deny(warnings))]
 
 pub mod api;
 mod config;
 mod error;
-mod loader;
 mod mempool;
 pub mod metrics;
+
+#[cfg(feature = "logic")]
+mod loader;
+#[cfg(feature = "logic")]
 pub mod protos;
+#[cfg(feature = "logic")]
 mod replication;
 #[doc(hidden)]
+#[cfg(feature = "logic")]
 pub mod test;
+#[cfg(feature = "logic")]
 pub mod txpool;
+#[cfg(feature = "logic")]
 mod validation;
+
 pub use crate::api::*;
 pub use crate::config::NodeConfig;
 use crate::error::*;
-use crate::loader::ChainLoaderMessage;
 use crate::mempool::Mempool;
+
+#[cfg(feature = "logic")]
+use crate::loader::ChainLoaderMessage;
+#[cfg(feature = "logic")]
+pub use crate::loader::CHAIN_LOADER_TOPIC;
+#[cfg(feature = "logic")]
 use crate::replication::Replication;
+#[cfg(feature = "logic")]
 use crate::txpool::TransactionPoolService;
+#[cfg(feature = "logic")]
 pub use crate::txpool::MAX_PARTICIPANTS;
+#[cfg(feature = "logic")]
 use crate::validation::*;
+
 use failure::{format_err, Error};
 use futures::sync::{mpsc, oneshot};
 use futures::{task, Async, AsyncSink, Future, Poll, Sink, Stream};
 use futures_stream_select_all_send::select_all;
-pub use loader::CHAIN_LOADER_TOPIC;
 use rand::{self, Rng};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashMap;
@@ -56,16 +72,25 @@ use std::thread;
 use std::time::{Duration, Instant};
 use stegos_blockchain::Timestamp;
 use stegos_blockchain::*;
-use stegos_consensus::optimistic::{
-    AddressedViewChangeProof, SealedViewChangeProof, ViewChangeCollector, ViewChangeMessage,
-};
-use stegos_consensus::{self as consensus, Consensus, ConsensusMessage, MacroBlockProposal};
+
 use stegos_crypto::hash::Hash;
 use stegos_crypto::pbc;
-use stegos_network::{Network, ReplicationEvent};
-use stegos_network::{PeerId, UnicastMessage};
+
+#[cfg(feature = "logic")]
+use stegos_network::{Network, PeerId, ReplicationEvent, UnicastMessage};
+
+#[cfg(feature = "logic")]
+use stegos_consensus::{
+    self as consensus,
+    optimistic::{
+        AddressedViewChangeProof, SealedViewChangeProof, ViewChangeCollector, ViewChangeMessage,
+    },
+    Consensus, ConsensusMessage, MacroBlockProposal,
+};
 use stegos_serialization::traits::ProtoConvert;
 use tokio_timer::{clock, Delay, Interval};
+
+#[cfg(feature = "logic")]
 use Validation::*;
 
 // ----------------------------------------------------------------
@@ -74,11 +99,13 @@ use Validation::*;
 
 /// Blockchain Node.
 #[derive(Clone, Debug)]
+#[cfg(feature = "logic")]
 pub struct Node {
     outbox: mpsc::UnboundedSender<NodeMessage>,
     network: Network,
 }
 
+#[cfg(feature = "logic")]
 impl Node {
     /// Send transaction to node and to the network.
     pub fn send_transaction(&self, transaction: Transaction) -> oneshot::Receiver<NodeResponse> {
@@ -145,6 +172,7 @@ macro_rules! serror {
 }
 
 #[derive(Debug)]
+#[cfg(feature = "logic")]
 pub enum NodeMessage {
     Request {
         request: NodeRequest,
@@ -171,6 +199,7 @@ enum MacroBlockTimer {
     ViewChange(Delay),
 }
 
+#[cfg(feature = "logic")]
 enum Validation {
     MicroBlockAuditor,
     MicroBlockValidator {
@@ -201,6 +230,7 @@ struct ChainReader {
     tx: mpsc::Sender<ChainNotification>,
 }
 
+#[cfg(feature = "logic")]
 impl ChainReader {
     fn poll(&mut self, chain: &Blockchain) -> Poll<(), Error> {
         // Check if subscriber has already been synchronized.
@@ -293,6 +323,7 @@ fn notify_subscribers<T: Clone>(subscribers: &mut Vec<mpsc::Sender<T>>, msg: T) 
     }
 }
 
+#[cfg(feature = "logic")]
 pub struct NodeService {
     /// Config.
     cfg: NodeConfig,
@@ -349,6 +380,7 @@ pub struct NodeService {
     replication: Replication,
 }
 
+#[cfg(feature = "logic")]
 impl NodeService {
     /// Constructor.
     pub fn new(
@@ -2081,6 +2113,13 @@ impl NodeService {
         }
     }
 
+    fn handle_block_list(&self, epoch: u64, limit: u64) -> Result<Vec<MacroBlockHeader>, Error> {
+        if epoch >= self.chain.epoch() {
+            return Err(format_err!("Macro block doesn't exists: epoch={}", epoch));
+        }
+        Ok(self.chain.blocks_ending(epoch, limit).collect())
+    }
+
     fn handle_macro_block_info(&self, epoch: u64) -> Result<ExtendedMacroBlock, Error> {
         if epoch >= self.chain.epoch() {
             return Err(format_err!("Macro block doesn't exists: epoch={}", epoch));
@@ -2118,6 +2157,8 @@ impl NodeService {
 }
 
 // Event loop.
+
+#[cfg(feature = "logic")]
 impl Future for NodeService {
     type Item = ();
     type Error = ();
@@ -2329,6 +2370,15 @@ impl Future for NodeService {
                                         },
                                     }
                                 }
+                                NodeRequest::BlockList { epoch, limit } => {
+                                    match self.handle_block_list(epoch, limit) {
+                                        Ok(list) => NodeResponse::BlockList { list },
+                                        Err(e) => NodeResponse::Error {
+                                            error: format!("{}", e),
+                                        },
+                                    }
+                                }
+
                                 NodeRequest::MacroBlockInfo { epoch } => {
                                     match self.handle_macro_block_info(epoch) {
                                         Ok(block_info) => NodeResponse::MacroBlockInfo(block_info),

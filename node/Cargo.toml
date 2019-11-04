@@ -13,10 +13,10 @@ repository = "https://github.com/stegos/stegos"
 description = "Stegos - Blockchain Node"
 
 [dependencies]
-stegos_blockchain = { version = "0.2.0", path = "../blockchain" }
-stegos_consensus = { version = "0.2.0", path = "../consensus" }
-stegos_crypto = { version = "0.2.0", path = "../crypto" }
-stegos_network = { version = "0.4.0", path = "../network" }
+stegos_blockchain = { version = "0.2.0", path = "../blockchain", default-features = false}
+stegos_consensus = { version = "0.2.0", path = "../consensus", optional = true}
+stegos_crypto = { version = "0.2.0", path = "../crypto", default-features = false }
+stegos_network = { version = "0.4.0", path = "../network", optional = true }
 stegos_serialization = { version = "0.2.0", path = "../serialization" }
 bit-vec = "0.6"
 clap = "2.32"
@@ -45,3 +45,7 @@ humantime-serde = "0.1"
 
 [build-dependencies]
 stegos_serialization = { version = "0.2.0", path = "../serialization" }
+
+[features]
+default = ["logic"]
+logic= ["stegos_network", "stegos_consensus", "stegos_blockchain/logic", "stegos_crypto/flint", "stegos_crypto/old_crypto"]

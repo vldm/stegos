@@ -20,12 +20,14 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+#[cfg(feature = "logic")]
 use super::replication::api::*;
 use futures::sync::mpsc;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use stegos_blockchain::{
-    ElectionInfo, EpochInfo, EscrowInfo, MacroBlock, MicroBlock, Output, Timestamp, Transaction,
+    ElectionInfo, EpochInfo, EscrowInfo, MacroBlock, MacroBlockHeader, MicroBlock, Output,
+    Timestamp, Transaction,
 };
 use stegos_crypto::hash::{Hash, Hashable, Hasher};
 use stegos_crypto::scc;
@@ -62,6 +64,10 @@ pub enum NodeRequest {
         epoch: u64,
         offset: u32,
     },
+    BlockList {
+        epoch: u64,
+        limit: u64,
+    },
     SubscribeChain {
         epoch: u64,
         offset: u32,
@@ -77,6 +83,7 @@ pub enum NodeRequest {
 pub enum NodeResponse {
     ElectionInfo(ElectionInfo),
     EscrowInfo(EscrowInfo),
+    #[cfg(feature = "logic")]
     ReplicationInfo(ReplicationInfo),
     MicroBlockPopped,
     ChainName {
@@ -103,6 +110,9 @@ pub enum NodeResponse {
         status: StatusInfo,
         #[serde(skip)]
         rx: Option<mpsc::Receiver<StatusNotification>>, // Option is needed for serde.
+    },
+    BlockList {
+        list: Vec<MacroBlockHeader>,
     },
     MacroBlockInfo(ExtendedMacroBlock),
     MicroBlockInfo(ExtendedMicroBlock),

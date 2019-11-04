@@ -686,6 +686,25 @@ impl Blockchain {
             .map(|(_, v)| Block::from_buffer(&*v).expect("couldn't deserialize block."))
     }
 
+    /// Returns iterator over saved blocks, bacward.
+    pub fn blocks_ending<'a>(
+        &'a self,
+        epoch: u64,
+        limit: u64,
+    ) -> impl Iterator<Item = MacroBlockHeader> + 'a {
+        let key = Self::block_key(LSN(epoch, MACRO_BLOCK_OFFSET));
+        let mode = rocksdb::IteratorMode::From(&key, rocksdb::Direction::Reverse);
+        self.database
+            .iterator(mode)
+            .map(|(_, v)| Block::from_buffer(&*v).expect("couldn't deserialize block."))
+            .filter_map(|b| match b {
+                Block::MacroBlock(b) => Some(b),
+                _ => None,
+            })
+            .map(|b| b.header)
+            .take(limit as usize)
+    }
+
     /// Returns iterator over saved blocks.
     pub fn blocks_starting<'a>(
         &'a self,

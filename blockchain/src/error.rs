@@ -32,7 +32,7 @@ use stegos_crypto::scc::PublicKey;
 use stegos_crypto::CryptoError;
 
 #[cfg(feature = "logic")]
-pub type StorageError = crate::rocksdb::Error;
+pub type StorageError = rocksdb::Error;
 
 #[derive(Debug, Fail)]
 pub enum BlockchainError {

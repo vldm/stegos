@@ -24,7 +24,10 @@
 // SOFTWARE.
 
 use failure::Fail;
-use stegos_blockchain::{BlockError, BlockchainError, StorageError};
+use stegos_blockchain::{BlockError, BlockchainError};
+
+#[cfg(feature = "logic")]
+use stegos_blockchain::StorageError;
 use stegos_crypto::hash::Hash;
 
 #[derive(Debug, Fail, PartialEq, Eq)]
@@ -78,6 +81,7 @@ impl From<BlockchainError> for ForkError {
     }
 }
 
+#[cfg(feature = "logic")]
 impl From<StorageError> for ForkError {
     fn from(err: StorageError) -> ForkError {
         ForkError::Error(err.into())
