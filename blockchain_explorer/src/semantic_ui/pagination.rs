@@ -41,7 +41,7 @@ impl Component for Pagination {
                 self.props.onchange.emit(self.props.active_page);
             }
             Msg::Previous => {
-                self.props.active_page.saturating_sub(1);
+                self.props.active_page = self.props.active_page.saturating_sub(1);
                 self.props.onchange.emit(self.props.active_page);
             }
         }

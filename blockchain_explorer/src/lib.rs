@@ -1,9 +1,12 @@
+#![feature(trace_macros)]
 #![recursion_limit = "1024"]
 mod app;
 pub mod block;
 pub mod websocket;
 use lazy_static::lazy_static;
 use wasm_bindgen::prelude::*;
+pub mod block_list;
+pub mod placeholder;
 pub mod semantic_ui;
 pub mod temp_api;
 use app::App;
@@ -36,8 +39,6 @@ pub fn run_app() -> Result<(), JsValue> {
     Ok(())
 }
 
-#[wasm_bindgen]
-pub fn hello_world() {
-    use log::trace;
-    trace!("Hello World!")
+trait DataSource<Source> {
+    fn get_page(page: usize, limit: usize) {}
 }

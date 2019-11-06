@@ -60,7 +60,7 @@ impl Component for Menu {
 impl Renderable<Menu> for Menu {
     fn view(&self) -> Html<Self> {
         html! {
-        <div class="ui secondary pointing menu">
+        <div class="ui attached stackable menu">
             {
             for self.props.left_items.iter().enumerate().map(|(idx, name)|{
                 html!{

@@ -1,0 +1,34 @@
+Admin panel:
+1) Configure network. [mid]
+2) Set token and address. [mid]
+
+Log panel:
+1) Show debug info. [mid]
+2) Hide/Show. [mid]
+
+Block List:
+1) Show award. [mid]
+2) Show microblocks. [mid]
+3) Validate block. [low]
+4) Update on notification.
+5) Split last blocks, and blocks in history page.
+6) Timestamp of block.
+
+Block info:
+0) Block header information.
+1) Full recipient id.
+2) Contact list.
+3) Show comments.
+4) Pagination.
+5) Sort.
+6) Timestamp of utxo.
+
+Main Menu:
+1) Search objects by hash.
+2) Store account info for public information.
+3) Store network account info for validator public information.
+
+
+Feature request:
+1) transaction queue [low]
+2) bug reports [low]

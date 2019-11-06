@@ -25,7 +25,8 @@ class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
 
-SimpleHTTPServer.SimpleHTTPRequestHandler.extensions_map['.wasm'] =    'application/wasm'
+SimpleHTTPServer.SimpleHTTPRequestHandler.extensions_map['.wasm'] = 'application/wasm'
+SimpleHTTPServer.SimpleHTTPRequestHandler.extensions_map['.js'] = 'application/javascript'
 host = '0.0.0.0'
 try:
     port = int(sys.argv[1])

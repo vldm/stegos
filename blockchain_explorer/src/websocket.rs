@@ -2,12 +2,16 @@ use crate::api;
 use failure::Error;
 use log::*;
 use serde::{de::DeserializeOwned, Serialize};
+use stdweb::web::{IEventTarget, SocketBinaryType, SocketReadyState, WebSocket};
+
+use stdweb::traits::IMessageEvent;
+use stdweb::web::event::{SocketCloseEvent, SocketErrorEvent, SocketMessageEvent, SocketOpenEvent};
 use wasm_bindgen::__rt::core::time::Duration;
 use wasm_bindgen::__rt::std::collections::HashMap;
 use yew::callback::Callback;
 use yew::services::timeout::TimeoutTask;
 use yew::services::websocket::{WebSocketStatus, WebSocketTask};
-use yew::services::{TimeoutService, WebSocketService};
+use yew::services::TimeoutService;
 use yew::worker::*;
 
 pub struct WebSocketSingelton {
@@ -26,8 +30,7 @@ impl WebSocketSingelton {
 }
 
 struct WebSocketAgent {
-    ws_service: WebSocketService,
-    ws_task: Option<WebSocketTask>,
+    ws: Option<WebSocket>,
 
     timeout_service: TimeoutService,
     timeout: Option<TimeoutTask>,
@@ -60,10 +63,9 @@ impl Agent for WebSocketAgent {
     // Create an instance with a link to agent's environment.
     fn create(link: AgentLink<Self>) -> Self {
         let mut socket = WebSocketAgent {
-            ws_service: WebSocketService::new(),
+            ws: None,
             timeout_service: TimeoutService::new(),
             link,
-            ws_task: None,
             timeout: None,
             pending_request: vec![],
             requests: HashMap::new(),
@@ -78,7 +80,7 @@ impl Agent for WebSocketAgent {
         match msg {
             Msg::Lost => {
                 trace!("Websocket failed, reconnecting in 10 secs...");
-                self.ws_task = None;
+                self.ws = None;
                 let send_msg = self.link.send_back(|_| Msg::Reconnect.into());
                 self.timeout = Some(
                     self.timeout_service
@@ -141,18 +143,41 @@ impl From<Result<Vec<u8>, Error>> for RawResponse {
 
 impl WebSocketAgent {
     fn connect(&mut self) {
-        if let Some(_) = self.ws_task {
+        if let Some(_) = self.ws {
             warn!("Websocket connection already active");
         } else {
+            info!("Creating websocket connection.");
             let callback = self.link.send_back(|RawResponse(data)| Msg::Read(data));
-            let notification = self.link.send_back(|status| match status {
-                WebSocketStatus::Opened => Msg::Connected.into(),
-                WebSocketStatus::Closed | WebSocketStatus::Error => Msg::Lost.into(),
+            let notification = self.link.send_back(|msg| msg);
+            let ws = WebSocket::new(crate::WS_ADDR).unwrap();
+            ws.set_binary_type(SocketBinaryType::ArrayBuffer);
+            let notify = notification.clone();
+            ws.add_event_listener(move |_: SocketOpenEvent| {
+                notify.emit(Msg::Connected);
             });
-            let task = self
-                .ws_service
-                .connect(crate::WS_ADDR, callback, notification);
-            self.ws_task = Some(task);
+            let notify = notification.clone();
+            ws.add_event_listener(move |_: SocketCloseEvent| {
+                notify.emit(Msg::Lost);
+            });
+            let notify = notification.clone();
+            ws.add_event_listener(move |_: SocketErrorEvent| {
+                notify.emit(Msg::Lost);
+            });
+
+            ws.add_event_listener(move |event: SocketMessageEvent| {
+                if let Some(bytes) = event.data().into_array_buffer() {
+                    let bytes: Vec<u8> = bytes.into();
+                    let data = Ok(bytes);
+                    let out = RawResponse::from(data);
+                    callback.emit(out);
+                } else if let Some(text) = event.data().into_text() {
+                    let data = Ok(text);
+                    let out = RawResponse::from(data);
+                    callback.emit(out);
+                }
+            });
+
+            self.ws = Some(ws);
         }
     }
 
@@ -170,8 +195,8 @@ impl WebSocketAgent {
     }
 
     fn request(&mut self, kind: crate::api::RequestKind, who: HandlerId) {
-        let mut id = self.get_request_id();
-        let ws = match &mut self.ws_task {
+        let id = self.get_request_id();
+        let ws = match &mut self.ws {
             Some(ws) => ws,
             None => {
                 panic!("Can't send message to closed websocket.");
@@ -183,6 +208,9 @@ impl WebSocketAgent {
         assert!(self.requests.insert(id, who).is_none());
 
         let request = crate::api::encode(&request);
-        ws.send(Ok(request))
+
+        if ws.send_text(&request).is_err() {
+            self.link.send_back(|m| m).emit(Msg::Lost);
+        }
     }
 }
