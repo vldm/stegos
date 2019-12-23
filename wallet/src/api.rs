@@ -27,10 +27,14 @@ use std::collections::BTreeMap;
 pub use stegos_blockchain::PaymentPayloadData;
 pub use stegos_blockchain::StakeInfo;
 use stegos_blockchain::Timestamp;
+use stegos_blockchain::Transaction;
 use stegos_crypto::hash::Hash;
 use stegos_crypto::pbc;
 use stegos_crypto::scc;
 use stegos_node::TransactionStatus;
+use stegos_crypto::utils::{deserialize_protobuf_from_hex, serialize_protobuf_to_hex};
+use super::chat;
+
 pub type AccountId = String;
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
@@ -214,6 +218,30 @@ pub enum AccountRequest {
         new_password: String,
     },
     GetRecovery {},
+    /// chat requests
+    DebugChatState {},
+    CreateChannel {
+        channel_id: String,
+    },
+    JoinChannel {
+        channel_id: String,
+        invite: chat::ChannelInvite,
+    },
+    CreateGroup {
+        group_id: String,
+    },
+    SendMessage {
+        chat_id: String,
+        message: String,
+    },
+    AddMember {
+        group_id: String,
+        user: scc::PublicKey,
+    },
+    EvictMember {
+        group_id: String,
+        user: scc::PublicKey
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -283,6 +311,16 @@ pub enum AccountResponse {
     },
     PasswordChanged,
     Recovery(AccountRecovery),
+    CreateChannel {
+        invite: chat::ChannelInvite,
+    },
+    JoinChannel {},
+    // Temporary
+    CreateTx {
+        #[serde(serialize_with = "serialize_protobuf_to_hex")]
+        #[serde(deserialize_with = "deserialize_protobuf_from_hex")]
+        list: Transaction,
+    },
     Error {
         error: String,
     },

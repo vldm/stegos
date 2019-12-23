@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![deny(warnings)]
+// #![deny(warnings)]
 
 pub mod api;
 mod change;
@@ -155,7 +155,7 @@ struct UnsealedAccountService {
     /// Faciliator's PBC public key
     facilitator_pkey: pbc::PublicKey,
     /// Persistent part of the state.
-    database: AccountDatabase,
+    database: AccountDatabaseRef,
 
     /// Network API (shared).
     network: Network,
@@ -170,6 +170,11 @@ struct UnsealedAccountService {
     // Snowball state (owned)
     //
     snowball: Option<(Snowball, oneshot::Sender<AccountResponse>)>,
+    
+    //
+    // Chat state
+    //
+    chat: chat::Chat,
     //
     // Response from mempool about transaction.
     //
@@ -209,13 +214,14 @@ impl UnsealedAccountService {
         info!("My account key: {}", String::from(&account_pkey));
         debug!("My network key: {}", network_pkey.to_hex());
 
+        let chat = chat::Chat::new(account_skey, account_pkey,);
         let facilitator_pkey: pbc::PublicKey = pbc::PublicKey::dum();
         let snowball = None;
         let last_macro_block_timestamp = Timestamp::UNIX_EPOCH;
 
         debug!("Loading account {}", account_pkey);
         // TODO: add proper handling for I/O errors.
-        let database = AccountDatabase::open(&database_dir);
+        let database = AccountDatabase::open(&database_dir).into();
         let epoch = database.epoch();
         debug!("Opened database: epoch={}", epoch);
         let transaction_response = None;
@@ -236,6 +242,7 @@ impl UnsealedAccountService {
             resend_tx,
             check_pending_utxos,
             snowball,
+            chat,
             stake_epochs,
             max_inputs_in_tx,
             last_macro_block_timestamp,
@@ -702,8 +709,8 @@ impl UnsealedAccountService {
     fn on_output_created(&mut self, epoch: u64, output: &Output, block_timestamp: Timestamp) {
         let hash = Hash::digest(&output);
         match output {
-            Output::ChatMessageOutput(_o) => {
-                // TODO - wire this in...
+            Output::ChatMessageOutput(o) => {
+                self.chat.process_incomming(o.clone())
             }
             Output::PaymentOutput(o) => {
                 if let Ok(PaymentPayload { amount, data, .. }) =
@@ -1083,6 +1090,28 @@ impl UnsealedAccountService {
         self.subscribers
             .retain(move |tx| tx.unbounded_send(notification.clone()).is_ok());
     }
+
+    // Iteration 1, chat and account has same keypair.
+    // TODO: Iteration 2, chat and account has different keypair, but same account.
+    fn new_chat_tx(&mut self, outputs: Vec<ChatMessageOutput>) -> Result<Transaction, Error> {
+        const PAYMNET_FEE: i64 = 1_000;
+        let chat_fee = PAYMNET_FEE;
+        let payment_fee = PAYMNET_FEE;
+        
+        let unspent_iter = self.database.available_payment_outputs();
+        let (inputs, outputs, gamma, fee) = create_chat_transaction(
+            &self.account_pkey,
+            unspent_iter,
+            chat_fee,
+            payment_fee,
+            self.max_inputs_in_tx,
+            outputs,
+        )?;
+
+        let tx = PaymentTransaction::new(&self.account_skey, &inputs, &outputs, &gamma, fee)?;
+        tx.validate(&inputs)?;
+        Ok(tx.into())
+    }
 }
 
 /// This could be used for non PaymentTx.
@@ -1121,6 +1150,15 @@ impl PartialEq for UnsealedAccountResult {
             (UnsealedAccountResult::Sealed, UnsealedAccountResult::Sealed) => true,
             (UnsealedAccountResult::Disabled(_), UnsealedAccountResult::Disabled(_)) => true,
             _ => false,
+        }
+    }
+}
+
+macro_rules! api_on_okay {
+    ($val:expr => Ok($new_val:tt) $okay:block) => {
+        match $val {
+            Ok($new_val) => $okay,
+            Err(e) => AccountResponse::Error {error:e.to_string()}
         }
     }
 }
@@ -1340,7 +1378,58 @@ impl Future for UnsealedAccountService {
                                         error: format!("{}", e),
                                     },
                                 }
-                            }
+                            },
+                            AccountRequest::DebugChatState {
+                            } => {
+                                log::info!("chat = {:?}", self.chat);
+                                continue;
+                            },
+                            AccountRequest::CreateChannel {
+                                channel_id,
+                            } => {
+                                api_on_okay!(self.chat.create_channel(channel_id) =>
+                                    Ok(invite) {
+                                        AccountResponse::CreateChannel {invite}
+                                    }
+                                )
+                            },
+                            AccountRequest::JoinChannel {
+                                channel_id,
+                                invite,
+                            } => {
+                                api_on_okay!(self.chat.join_channel(channel_id, invite) =>
+                                    Ok(_) {
+                                        AccountResponse::JoinChannel {}
+                                    }
+                                )
+                            },
+                            AccountRequest::SendMessage {
+                                chat_id,
+                                message,
+                            } => {
+                                api_on_okay!(self.chat.new_message(chat_id, message.as_bytes().to_vec()) =>
+                                    Ok(output) {
+                                        api_on_okay!(self.new_chat_tx(vec![output]) =>
+                                            Ok(tx) {
+                                                AccountResponse::CreateTx {
+                                                    list: tx
+                                                }
+                                            }
+                                        )
+                                    }
+                                )
+                            },
+                            AccountRequest::CreateGroup {
+                                group_id,
+                            } => {unimplemented!()},
+                            AccountRequest::AddMember {
+                                group_id,
+                                user,
+                            } => {unimplemented!()},
+                            AccountRequest::EvictMember {
+                                group_id,
+                                user
+                            } => {unimplemented!()},
                         };
                         tx.send(response).ok(); // ignore errors.
                     }

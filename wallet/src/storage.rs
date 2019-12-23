@@ -42,6 +42,8 @@ use stegos_node::TransactionStatus;
 use stegos_serialization::traits::ProtoConvert;
 use tempdir::TempDir;
 use tokio_timer::clock;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 // colon families.
 const HISTORY: &'static str = "history";
@@ -57,7 +59,13 @@ pub enum LogEntry {
     Incoming { output: OutputValue },
     Outgoing { tx: TransactionValue },
 }
+pub type AccountDatabaseRef = Rc<RefCell<AccountDatabase>>;
 
+impl From<AccountDatabase> for AccountDatabaseRef {
+    fn from(db: AccountDatabase) -> AccountDatabaseRef {
+        Rc::new(RefCell::new(db))
+    }
+}
 /// Currently we support only transaction that have 2 outputs,
 /// one for recipient, and one for change.
 pub struct AccountDatabase {
