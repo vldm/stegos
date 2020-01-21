@@ -43,9 +43,9 @@ use stegos_serialization::traits::ProtoConvert;
 use tempdir::TempDir;
 use tokio_timer::clock;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 // colon families.
+// const CHAT_HISTORY:
 const HISTORY: &'static str = "history";
 const UNSPENT: &'static str = "unspent";
 const META: &'static str = "meta";
@@ -59,13 +59,7 @@ pub enum LogEntry {
     Incoming { output: OutputValue },
     Outgoing { tx: TransactionValue },
 }
-pub type AccountDatabaseRef = Rc<RefCell<AccountDatabase>>;
 
-impl From<AccountDatabase> for AccountDatabaseRef {
-    fn from(db: AccountDatabase) -> AccountDatabaseRef {
-        Rc::new(RefCell::new(db))
-    }
-}
 /// Currently we support only transaction that have 2 outputs,
 /// one for recipient, and one for change.
 pub struct AccountDatabase {
@@ -73,6 +67,7 @@ pub struct AccountDatabase {
     _temp_dir: Option<TempDir>,
     /// RocksDB database object.
     database: DB,
+    cell: Rc<()>,
 
     /// Current Epoch.
     epoch: u64,
@@ -101,6 +96,11 @@ pub struct AccountDatabase {
     epoch_transactions: HashSet<Hash>,
 }
 
+// #[derive(Clone)]
+// pub struct AccountDatabase {
+//     inner: 
+// }
+
 //Account log api.
 impl AccountDatabase {
     /// Open database.
@@ -115,6 +115,7 @@ impl AccountDatabase {
         let mut log = AccountDatabase {
             _temp_dir: None,
             database,
+            cell: Rc::new(()),
             epoch: 0,
             created_txs: HashMap::new(),
             pending_payments: HashMap::new(),
@@ -142,6 +143,7 @@ impl AccountDatabase {
         AccountDatabase {
             _temp_dir: Some(temp_dir),
             database,
+            cell: Rc::new(()),
             created_txs: HashMap::new(),
             pending_payments: HashMap::new(),
             pending_txs: HashSet::new(),

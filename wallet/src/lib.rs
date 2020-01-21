@@ -45,7 +45,7 @@ use api::*;
 use failure::{format_err, Error};
 use futures::future::IntoFuture;
 use futures::sync::{mpsc, oneshot};
-use futures::{task, Async, Future, Poll, Stream};
+use futures::{lazy, task, Async, Future, Poll, Stream};
 use log::*;
 use std::collections::HashMap;
 use std::fs;
@@ -155,7 +155,7 @@ struct UnsealedAccountService {
     /// Faciliator's PBC public key
     facilitator_pkey: pbc::PublicKey,
     /// Persistent part of the state.
-    database: AccountDatabaseRef,
+    database: AccountDatabase,
 
     /// Network API (shared).
     network: Network,
@@ -214,14 +214,14 @@ impl UnsealedAccountService {
         info!("My account key: {}", String::from(&account_pkey));
         debug!("My network key: {}", network_pkey.to_hex());
 
-        let chat = chat::Chat::new(account_skey, account_pkey,);
+        let chat = chat::Chat::new(account_skey, account_pkey);
         let facilitator_pkey: pbc::PublicKey = pbc::PublicKey::dum();
         let snowball = None;
         let last_macro_block_timestamp = Timestamp::UNIX_EPOCH;
 
         debug!("Loading account {}", account_pkey);
         // TODO: add proper handling for I/O errors.
-        let database = AccountDatabase::open(&database_dir).into();
+        let database = AccountDatabase::open(&database_dir);
         let epoch = database.epoch();
         debug!("Opened database: epoch={}", epoch);
         let transaction_response = None;
@@ -1798,8 +1798,10 @@ impl Future for AccountService {
 }
 
 impl AccountService {
-    /// Create a new wallet.
-    fn new(
+    /// Spawn a new account service, returns error if can't find account folder.
+    /// Returns Account api.
+    fn spawn_new(
+        executor: &TaskExecutor,
         database_dir: &Path,
         account_dir: &Path,
         network_skey: pbc::SecretKey,
@@ -1808,27 +1810,33 @@ impl AccountService {
         node: Node,
         stake_epochs: u64,
         max_inputs_in_tx: usize,
-    ) -> Result<(Self, Account), KeyError> {
+    ) -> Result<Account, KeyError> {
         let account_pkey_file = account_dir.join("account.pkey");
         let account_pkey = load_account_pkey(&account_pkey_file)?;
         let subscribers: Vec<mpsc::UnboundedSender<AccountNotification>> = Vec::new();
         let (outbox, events) = mpsc::unbounded::<AccountEvent>();
-        let service = SealedAccountService::new(
-            database_dir.to_path_buf(),
-            account_dir.to_path_buf(),
-            account_pkey,
-            network_skey,
-            network_pkey,
-            network,
-            node,
-            stake_epochs,
-            max_inputs_in_tx,
-            subscribers,
-            events,
-        );
-        let service = AccountService::Sealed(service);
+                  
+
+            let service = SealedAccountService::new(
+                database_dir.to_path_buf(),
+                account_dir.to_path_buf(),
+                account_pkey,
+                network_skey,
+                network_pkey,
+                network,
+                node,
+                stake_epochs,
+                max_inputs_in_tx,
+                subscribers,
+                events,
+            );
+        executor.spawn(lazy(move || {
+            let service = AccountService::Sealed(service);
+            service
+        }));
+
         let api = Account { outbox };
-        Ok((service, api))
+        Ok( api)
     }
 }
 
@@ -1986,8 +1994,9 @@ impl WalletService {
             database.finalize_epoch(self.last_epoch)?;
             drop(database);
         }
-
-        let (account_service, account) = AccountService::new(
+        
+        let (account) = AccountService::spawn_new(
+            &self.executor,
             &account_database_dir,
             &account_dir,
             self.network_skey.clone(),
@@ -2005,7 +2014,6 @@ impl WalletService {
         };
         let prev = self.accounts.insert(account_id.to_string(), handle);
         assert!(prev.is_none(), "account_id is unique");
-        self.executor.spawn(account_service);
         info!("Recovered account {}, is_new:{}", account_pkey, is_new);
         Ok(())
     }

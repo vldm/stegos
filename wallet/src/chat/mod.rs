@@ -39,7 +39,7 @@ use derivative::Derivative;
 
 use log::{log, Level};
 use stegos_network::Network;
-use super::AccountDatabaseRef;
+
 // ----------------------------------------------------------------------------------
 
 /*
@@ -502,15 +502,13 @@ pub struct Chat {
 
     /// State while processing
     state: ChatState,
-
-    database: AccountDatabaseRef,
 }
 
 impl Chat {
     // GUI Alert - somebody needs to call this to set things up
     // We probably need functions here to save/restore state info to
     // startup database.
-    pub fn new(chat_skey: SecretKey, chat_pkey: PublicKey, db: AccountDatabaseRef) -> Chat {
+    pub fn new(chat_skey: SecretKey, chat_pkey: PublicKey) -> Chat {
         let chat_info = Chat {
             chat_skey,
             chat_pkey,
@@ -520,7 +518,6 @@ impl Chat {
             subscribed_groups: Vec::new(),
             my_utxos: Vec::new(),
             state: ChatState::None,
-            db,
         };
         chat_info
     }
