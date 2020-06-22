@@ -1,8 +1,32 @@
 [package]
 name = "stegos_consensus"
-version = "0.1.0"
-authors = ["Stegos AG <info@stegos.cc>"]
+version = "1.0.0"
+authors = ["Stegos AG <info@stegos.com>"]
+build = "build.rs"
+categories = ["network-programming"]
 edition = "2018"
+homepage = "https://stegos.com"
+keywords = ["stegos", "blockchain", "cryptocurrency", "crypto", "privacy"]
+license = "MIT"
+links = "stegos_consensus"
+repository = "https://github.com/stegos/stegos"
+description = "Stegos - Consensus Implementation"
 
 [dependencies]
+stegos_blockchain = { version = "1.0.0", path = "../blockchain" }
+stegos_crypto = { version = "1.0.0", path = "../crypto" }
+stegos_serialization = { version = "1.0.0", path = "../serialization" }
+bit-vec = "0.6"
+failure = "0.1"
 log = "0.4"
+protobuf = "2.6"
+lazy_static = "1.2"
+prometheus = "0.7"
+
+[dev-dependencies]
+stegos_keychain = { version = "1.0.0", path = "../keychain" }
+rand = "0.7.0"
+simple_logger = "1.2"
+
+[build-dependencies]
+stegos_serialization = { version = "1.0.0", path = "../serialization" }

@@ -1,60 +1,112 @@
 [package]
 name = "stegos"
-version = "0.1.0"
-authors = ["Stegos AG <info@stegos.cc>"]
+version = "1.3.0"
+authors = ["Stegos AG <info@stegos.com>"]
+build = "build.rs"
+categories = ["cryptography", "database-implementations", "command-line-utilities"]
 edition = "2018"
+homepage = "https://stegos.com"
+keywords = ["stegos", "blockchain", "cryptocurrency", "crypto", "privacy"]
+license = "MIT"
+repository = "https://github.com/stegos/stegos"
+description = "Stegos is a completely private, confidential, and scalable cryptocurrency that's friendly to the environment"
 
-[[bin]]
+[lib]
 name = "stegos"
-path = "src/stegos.rs"
+crate-type = ["cdylib"]
 
 [workspace]
 members = [
     "api",
     "blockchain",
-    "config",
     "consensus",
     "crypto",
     "keychain",
     "network",
     "node",
-    "randhound",
-    "runtime",
-    "storage",
-    "txpool"
+    "txpool",
+    "replication",
+    "serialization",
+    "wallet",
+    "stegos_lib_test",
+    "crypto/stubs/vdf_field",
+    "3rdparty/gossipsub",
 ]
 
 [dependencies]
-stegos_api = { path = "./api" }
-stegos_blockchain = { path = "./blockchain" }
-stegos_config = { path = "./config" }
-stegos_consensus = { path = "./consensus" }
-stegos_crypto = { path = "./crypto" }
-stegos_keychain = { path = "./keychain" }
-stegos_network = { path = "./network" }
-stegos_node = { path = "./node" }
-stegos_randhound = { path = "./randhound" }
-stegos_runtime = { path = "./runtime" }
-stegos_storage = { path = "./storage" }
-stegos_txpool = { path = "./txpool" }
-
+stegos_api = { version = "1.0.0", path = "./api" }
+stegos_blockchain = { version = "1.0.0", path = "./blockchain" }
+stegos_consensus = { version = "1.0.0", path = "./consensus" }
+stegos_crypto = { version = "1.0.0", path = "./crypto" }
+stegos_keychain = { version = "1.0.0", path = "./keychain" }
+stegos_network = { version = "1.0.0", path = "./network"}
+stegos_replication = { version = "1.0.0", path = "./replication" }
+stegos_node = { version = "1.0.0", path = "./node" }
+stegos_serialization = { version = "1.0.0", path = "./serialization" }
+stegos_wallet = { version = "1.0.0", path = "./wallet" }
+stegos_txpool = { version = "1.0.0", path = "./txpool" }
+assert_matches = "1.3.0"
+bit-vec = "0.6"
 clap = "2.32"
-dirs = "1.0"
-futures = "0.1"
-tokio-io = "0.1"
-tokio-timer = "0.2"
-tokio = "0.1"
-log = "0.4"
-log4rs = { version = "0.8", features = ["all_components", "gzip", "file", "toml_format"]}
+dirs = "2.0"
 failure = "0.1"
-rustyline = "2.1"
-libp2p = { git = "https://github.com/libp2p/rust-libp2p.git", rev = "e179951c74cb0c8916d27329f2dfd78917dddfb2" }
-parking_lot = "0.6"
+futures = "0.3"
+hyper = "0.13.5"
 lazy_static = "1.1"
+log = "0.4"
+log4rs = { version = "0.8", features = ["all_components", "gzip", "file", "toml_format"] }
+prometheus = "0.7"
+protobuf = "2.6"
+rand = "0.7.0"
+regex = "1.1"
+rustyline = "4.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_yaml = "0.8"
+simple_logger = "1.2"
+tokio =  {version="0.2.13", features =["time", "io-std", "rt-threaded", "macros"]}
+toml = "0.5"
+humantime = "1.2.0"
+tempdir = "0.3"
+rpassword = "4.0"
+libc = "0.2"
 atty = "0.2"
-regex = "1.0"
+serde_json = "1.0"
+jni = "0.14.0"
+backtrace = "0.3"
+async-trait="0.1.2"
+rocksdb = { version = "0.13", default-features = false, features = [ "zstd","snappy", "lz4"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.8"
 
 [dev-dependencies]
-simple_logger = "1.0"
+pretty_assertions = "0.6.1"
+
 
 [build-dependencies]
+failure = "0.1"
+regex = "1.0"
+chrono = "0.4"
+lazy_static = "1.4.0"
+
+[profile.release]
+panic = "abort"
+debug = 2
+
+[profile.dev]
+opt-level = 2
+panic = "abort"
+debug = 2
+debug-assertions = true
+overflow-checks = false
+
+[profile.test]
+opt-level = 2
+debug = 2
+debug-assertions = true
+overflow-checks = false
+
+[patch.crates-io]
+cc = { git = 'https://github.com/stegos/cc-rs.git'}
+libp2p-gossipsub = { path = './3rdparty/gossipsub' }

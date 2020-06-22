@@ -1,0 +1,299 @@
+syntax = "proto3";
+package stegos.blockchain;
+
+import "crypto.proto";
+import "view_changes.proto";
+
+message PaymentPayloadData {
+    oneof data {
+        stegos.crypto.Hash hash = 1;
+        string comment = 2;
+    }
+}
+
+message PaymentOutput {
+    stegos.crypto.PublicKey recipient = 1;
+    stegos.crypto.BulletProof proof = 2;
+    //uint64 locked_timestamp = 3;
+    stegos.crypto.Pt ag = 4;
+    bytes payload = 5;
+}
+
+message PublicPaymentOutput {
+    stegos.crypto.PublicKey recipient = 1;
+    int64 serno = 2;
+    int64 amount = 3;
+    //uint64 locked_timestamp = 4;
+}
+
+message StakeOutput {
+    stegos.crypto.PublicKey recipient = 1;
+    stegos.crypto.SecurePublicKey validator = 2;
+    int64 amount = 3;
+    int64 serno = 4;
+    stegos.crypto.SecureSignature signature = 5;
+}
+
+message Output {
+    oneof output {
+        PaymentOutput payment_output = 1;
+        PublicPaymentOutput public_payment_output = 2;
+        StakeOutput stake_output = 3;
+    }
+}
+
+message PaymentCanary {
+    stegos.crypto.Pt ag = 1;
+    bytes canary = 2;
+}
+
+message PublicPaymentCanary {
+    stegos.crypto.PublicKey recipient = 1;
+}
+
+message StakeCanary {
+    stegos.crypto.PublicKey recipient = 1;
+}
+
+message Canary {
+    oneof canary {
+        PaymentCanary payment_canary = 1;
+        PublicPaymentCanary public_payment_canary= 2;
+        StakeCanary stake_canary = 3;
+    }
+}
+
+message SlashingTransaction {
+    SlashingProof proof = 1;
+    repeated stegos.crypto.Hash txins = 2;
+    repeated Output txouts = 3;
+}
+
+message ServiceAwardTransaction {
+    repeated Output winner_reward = 1;
+}
+
+message CoinbaseTransaction {
+    int64 block_reward = 1;
+    int64 block_fee = 2;
+    stegos.crypto.Fr gamma = 3;
+    repeated Output txouts = 4;
+}
+
+message PaymentTransaction {
+    repeated stegos.crypto.Hash txins = 1;
+    repeated Output txouts = 2;
+    stegos.crypto.Fr gamma = 3;
+    int64 fee = 4;
+    stegos.crypto.SchnorrSig sig = 5;
+}
+
+message RestakeTransaction {
+    repeated stegos.crypto.Hash txins = 1;
+    repeated Output txouts = 2;
+    stegos.crypto.SecureSignature signature = 3;
+}
+
+message Transaction {
+    oneof transaction {
+        CoinbaseTransaction coinbase_transaction = 1;
+        PaymentTransaction payment_transaction = 2;
+        RestakeTransaction restake_transaction = 3;
+        SlashingTransaction slashing_transaction = 4;
+        ServiceAwardTransaction service_reward_transaction = 5;
+    }
+}
+
+message MacroBlockHeader {
+    uint64 version = 1;
+    stegos.crypto.Hash previous = 2;
+    uint64 epoch = 3;
+    uint32 view_change = 4;
+    stegos.crypto.SecurePublicKey pkey = 5;
+    stegos.crypto.VRF random = 6;
+    uint64 difficulty = 7;
+    uint64 timestamp = 8;
+    int64 block_reward = 9;
+    stegos.crypto.Fr gamma = 10;
+    repeated bool activity_map = 11;
+    uint32 validators_len = 12;
+    stegos.crypto.Hash validators_range_hash = 13;
+    uint32 inputs_len = 14;
+    stegos.crypto.Hash inputs_range_hash = 15;
+    uint32 outputs_len = 16;
+    stegos.crypto.Hash outputs_range_hash = 17;
+    stegos.crypto.Hash canaries_range_hash = 18;
+}
+
+message MacroBlock {
+    MacroBlockHeader header = 1;
+    stegos.crypto.SecureSignature multisig = 2;
+    repeated bool multisigmap = 3;
+    repeated stegos.crypto.Hash inputs = 4;
+    repeated Output outputs = 5;
+}
+
+message LightMacroBlock {
+    MacroBlockHeader header = 1;
+    stegos.crypto.SecureSignature multisig = 2;
+    repeated bool multisigmap = 3;
+    repeated Staker validators = 4;
+    repeated stegos.crypto.Hash input_hashes = 5;
+    repeated stegos.crypto.Hash output_hashes = 6;
+    repeated Canary canaries = 7;
+}
+
+message MicroBlockHeader {
+    uint64 version = 1;
+    stegos.crypto.Hash previous = 2;
+    uint64 epoch = 3;
+    uint32 offset = 4;
+    uint32 view_change = 5;
+    ViewChangeProof view_change_proof = 6;
+    stegos.crypto.SecurePublicKey pkey = 7;
+    stegos.crypto.VRF random = 8;
+    bytes solution = 9;
+    uint64 timestamp = 10;
+    uint32 transactions_len = 11;
+    stegos.crypto.Hash transactions_range_hash = 12;
+    uint32 inputs_len = 13;
+    stegos.crypto.Hash inputs_range_hash = 14;
+    uint32 outputs_len = 15;
+    stegos.crypto.Hash outputs_range_hash = 16;
+    stegos.crypto.Hash canaries_range_hash = 17;
+}
+
+message MicroBlock {
+    MicroBlockHeader header = 1;
+    stegos.crypto.SecureSignature sig = 2;
+    repeated Transaction transactions = 3;
+}
+
+message LightMicroBlock {
+    MicroBlockHeader header = 1;
+    stegos.crypto.SecureSignature sig = 2;
+    repeated stegos.crypto.Hash input_hashes = 5;
+    repeated stegos.crypto.Hash output_hashes = 6;
+    repeated Canary canaries = 7;
+}
+
+message Block {
+    oneof block {
+        MacroBlock macro_block = 1;
+        MicroBlock micro_block = 2;
+    }
+}
+
+message LightBlock {
+    oneof block {
+        LightMacroBlock light_macro_block = 1;
+        LightMicroBlock light_micro_block = 2;
+    }
+}
+
+message SlashingProof {
+    MicroBlock block1 = 1;
+    MicroBlock block2 = 2;
+}
+
+message LSN {
+    uint64 epoch = 1;
+    uint32 offset = 2;
+}
+
+message MacroBlockOutputKey {
+    uint64 epoch = 1;
+    uint32 output_id = 2;
+}
+
+message MicroBlockOutputKey {
+    uint64 epoch = 1;
+    uint32 offset = 2;
+    uint32 tx_id = 3;
+    uint32 txout_id = 4;
+}
+
+message OutputKey {
+    oneof key {
+        MacroBlockOutputKey macro_block = 1;
+        MicroBlockOutputKey micro_block = 2;
+    }
+}
+
+message EscrowKey {
+    stegos.crypto.SecurePublicKey validator_pkey = 1;
+    stegos.crypto.Hash output_hash = 2;
+}
+
+message EscrowValue {
+    stegos.crypto.PublicKey account_pkey = 1;
+    uint64 active_until_epoch = 2;
+    int64 amount = 3;
+}
+
+message Staker {
+    stegos.crypto.SecurePublicKey network_pkey = 1;
+    int64 amount = 2;
+}
+
+message ElectionResult {
+    stegos.crypto.VRF random = 1;
+    uint32 view_change = 2;
+    repeated Staker stakers = 3;
+    stegos.crypto.SecurePublicKey facilitator = 4;
+}
+
+message Balance {
+    stegos.crypto.Pt created = 1;
+    stegos.crypto.Pt burned = 2;
+    stegos.crypto.Fr gamma = 3;
+    int64 block_reward = 4;
+}
+
+message ValidatorKeyInfo {
+    stegos.crypto.SecurePublicKey network_pkey = 1;
+    stegos.crypto.PublicKey account_pkey = 2;
+    int64 slots = 3;
+}
+
+message PayoutInfo {
+    stegos.crypto.PublicKey recipient = 1;
+    int64 amount = 2;
+}
+
+message Active {}
+
+message Failed {
+    uint64 epoch = 1;
+    uint32 offset = 2;
+}
+
+message ValidatorAwardState {
+    stegos.crypto.PublicKey key = 1;
+    oneof enum_value {
+        Active active = 2;
+        Failed failed = 3;
+    }
+}
+
+message Awards {
+    int64 budget = 1;
+    uint64 difficulty = 2;
+    repeated ValidatorAwardState validators_activity = 3;
+}
+message AwardsInfo {
+    Awards service_award_state = 1;
+    PayoutInfo payout = 2;
+}
+
+message EpochInfo {
+    repeated ValidatorKeyInfo validators = 1;
+    stegos.crypto.SecurePublicKey facilitator = 2;
+    AwardsInfo awards = 3;
+}
+
+message LightEpochInfo {
+    MacroBlockHeader header = 1;
+    stegos.crypto.SecurePublicKey facilitator = 2;
+    repeated Staker validators = 3;
+}

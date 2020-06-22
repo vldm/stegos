@@ -1,7 +1,7 @@
 //! Hashing with SHA3
 
 //
-// Copyright (c) 2018 Stegos
+// Copyright (c) 2018 Stegos AG
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,24 +24,34 @@
 use crate::utils::*;
 use crate::CryptoError;
 
+use rand::thread_rng;
+use rand::Rng;
+use serde::de::{Deserialize, Deserializer};
+use serde::ser::{Serialize, Serializer};
 use sha3::{Digest, Sha3_256};
 use std::fmt;
 use std::hash as stdhash;
 use std::mem;
 use std::slice;
+use std::time::SystemTime;
 
 // -----------------------------------------------------
 // Hashing with SHA3
 
 pub const HASH_SIZE: usize = 32;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Hash([u8; HASH_SIZE]);
 
 impl Hash {
     /// Return a hash with all zeros.
     pub fn zero() -> Self {
         Hash([0u8; HASH_SIZE])
+    }
+
+    /// Return an random hash.
+    pub fn random() -> Self {
+        Hash(thread_rng().gen::<[u8; HASH_SIZE]>())
     }
 
     pub fn base_vector(&self) -> &[u8] {
@@ -53,7 +63,7 @@ impl Hash {
     }
 
     /// Convert into hex string.
-    pub fn into_hex(self) -> String {
+    pub fn to_hex(&self) -> String {
         u8v_to_hexstr(&self.0)
     }
 
@@ -78,7 +88,7 @@ impl Hash {
         hasher.result()
     }
 
-    pub fn digest(msg: &dyn Hashable) -> Hash {
+    pub fn digest<T: Hashable + ?Sized>(msg: &T) -> Hash {
         // produce a Hash from a single Hashable
         let mut hasher = Hasher::new();
         msg.hash(&mut hasher);
@@ -94,29 +104,36 @@ impl Hash {
         state.result()
     }
 
-    pub fn into_bytes(self) -> [u8; HASH_SIZE] {
+    pub fn to_bytes(&self) -> [u8; HASH_SIZE] {
         self.0
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, CryptoError> {
         if bytes.len() != HASH_SIZE {
-            return Err(CryptoError::InvalidBinaryLength(HASH_SIZE, bytes.len()));
+            return Err(CryptoError::InvalidBinaryLength(HASH_SIZE, bytes.len()).into());
         }
         let mut bits: [u8; HASH_SIZE] = [0u8; HASH_SIZE];
         bits.copy_from_slice(bytes);
         Ok(Hash(bits))
     }
+
+    /// Return minimal and maximal value of hash.
+    /// Used for BTreeSet iteration.
+    pub fn bounds() -> (Hash, Hash) {
+        (Hash([0u8; HASH_SIZE]), Hash([255u8; HASH_SIZE]))
+    }
 }
 
 impl fmt::Debug for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "H({})", self.into_hex())
+        write!(f, "H({})", self.to_hex())
     }
 }
 
 impl fmt::Display for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
+        // display only first 6 bytes.
+        write!(f, "{}", &self.to_hex()[0..12])
     }
 }
 
@@ -129,6 +146,31 @@ impl stdhash::Hash for Hash {
 impl Hashable for Hash {
     fn hash(&self, state: &mut Hasher) {
         self.0.hash(state);
+    }
+}
+
+impl<'a, T: Hashable + ?Sized> Hashable for &'a T {
+    fn hash(&self, state: &mut Hasher) {
+        T::hash(self, state)
+    }
+}
+
+impl Serialize for Hash {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_hex())
+    }
+}
+
+impl<'de> Deserialize<'de> for Hash {
+    fn deserialize<D>(deserializer: D) -> Result<Hash, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Hash::try_from_hex(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -210,6 +252,13 @@ pub trait Hashable {
     fn hash(&self, state: &mut Hasher);
 }
 
+impl Hashable for bool {
+    fn hash(&self, state: &mut Hasher) {
+        let data = if *self { 1 } else { 0 };
+        state.input(&[data])
+    }
+}
+
 impl Hashable for u8 {
     fn hash(&self, state: &mut Hasher) {
         state.input(&[*self])
@@ -233,6 +282,7 @@ impl Hashable for u64 {
         state.input(&unsafe { mem::transmute::<_, [u8; 8]>(*self) })
     }
 }
+
 impl Hashable for i64 {
     fn hash(&self, state: &mut Hasher) {
         state.input(&unsafe { mem::transmute::<_, [u8; 8]>(*self) })
@@ -260,6 +310,16 @@ impl Hashable for String {
     }
 }
 
+impl Hashable for SystemTime {
+    fn hash(&self, state: &mut Hasher) {
+        let since_the_epoch = self
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time is valid");
+        let timestamp = since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_millis() as u64;
+        timestamp.hash(state);
+    }
+}
+
 impl Hashable for [u8] {
     fn hash(&self, state: &mut Hasher) {
         let newlen = self.len() * mem::size_of::<u8>();
@@ -271,6 +331,27 @@ impl Hashable for [u8] {
 impl Hashable for Vec<u8> {
     fn hash(&self, state: &mut Hasher) {
         state.input(self);
+    }
+}
+
+impl<T: Hashable> Hashable for Option<T> {
+    fn hash(&self, state: &mut Hasher) {
+        if let Some(val) = self {
+            val.hash(state);
+        }
+    }
+}
+
+impl<T1: Hashable, T2: Hashable> Hashable for (T1, T2) {
+    fn hash(&self, state: &mut Hasher) {
+        self.0.hash(state);
+        self.1.hash(state);
+    }
+}
+
+impl Hashable for () {
+    fn hash(&self, state: &mut Hasher) {
+        "none".hash(state);
     }
 }
 
@@ -318,7 +399,7 @@ pub mod tests {
         let h = Hash::from_vector(b"");
         let chk = hex::decode("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a")
             .unwrap();
-        for (a, b) in h.bits().into_iter().zip(chk.iter()) {
+        for (a, b) in h.bits().iter().zip(chk.iter()) {
             assert_eq!(a, b);
         }
     }

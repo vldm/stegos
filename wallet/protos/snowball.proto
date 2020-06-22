@@ -1,0 +1,60 @@
+syntax = "proto3";
+package stegos.snowball;
+
+import "crypto.proto";
+import "blockchain.proto";
+
+message DcRow {
+    repeated stegos.crypto.Fr cols = 1;
+}
+
+message DcSheet {
+    repeated DcRow rows = 1;
+}
+
+message DcMatrix {
+    repeated DcSheet sheets = 1;
+}
+
+message SharedKeying {
+    stegos.crypto.PublicKey pkey = 1;
+    stegos.crypto.Pt ksig = 2;
+}
+
+message Commitment {
+    stegos.crypto.Hash cmt = 1;
+    repeated stegos.crypto.DiceMixParticipantID parts = 2;
+}
+
+message CloakedVals {
+    DcMatrix matrix = 1;
+    stegos.crypto.Fr gamma_sum = 2;
+    stegos.crypto.Fr fee_sum = 3;
+    repeated stegos.crypto.DiceMixParticipantID drops = 4;
+    repeated stegos.crypto.Hash cloaks = 5;
+}
+
+message Signature {
+    stegos.crypto.SchnorrSig sig = 1;
+}
+
+message SecretKeying {
+    stegos.crypto.SecretKey skey = 1;
+}
+
+message SnowballPayload {
+    oneof body {
+        SharedKeying sharedkeying = 1;
+        Commitment commitment = 2;
+        CloakedVals cloakedvals = 3;
+        Signature signature = 4;
+        SecretKeying secretkeying = 5;
+    }
+}
+
+message SnowballMessage {
+    stegos.crypto.Hash sid = 1;
+    stegos.crypto.DiceMixParticipantID source = 2;
+    stegos.crypto.DiceMixParticipantID destination = 3;
+    SnowballPayload payload = 4;
+}

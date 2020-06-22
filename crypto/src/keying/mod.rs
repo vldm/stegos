@@ -1,7 +1,7 @@
 //! Keying - Key Generation from Word Lists
 
 //
-// Copyright (c) 2018 Stegos
+// Copyright (c) 2018 Stegos AG
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +20,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
-#![allow(non_snake_case)]
-#![allow(dead_code)]
 
 const WORDLIST: [&str; 2048] = [
     "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd",
@@ -281,7 +278,7 @@ fn put_11_bits(vec: &mut [u8; 33], ix: usize, val: usize) {
     }
 }
 
-pub fn convert_int_to_wordlist(val: &[u8; 33]) -> [&str; 24] {
+pub fn convert_int_to_wordlist(val: &[u8; 33]) -> [&'static str; 24] {
     // convert a 264-bit bignum, in big-endian order, to a list of 24 words.
     // Each word represents an 11-bit field.
     let mut ans = [""; 24];
@@ -291,10 +288,32 @@ pub fn convert_int_to_wordlist(val: &[u8; 33]) -> [&str; 24] {
     ans
 }
 
-pub fn convert_wordlist_to_int(lst: &[&str; 24], val: &mut [u8; 33]) -> Result<(), usize> {
+pub fn convert_wordlist_to_int(lst: &[&str]) -> Result<[u8; 33], usize> {
+    if lst.len() != 24 {
+        return Err(lst.len());
+    }
+    let mut vec = [0u8; 33];
     for ix in 0..24 {
         let pos = WORDLIST.binary_search(&lst[ix])?;
-        put_11_bits(val, ix, pos);
+        put_11_bits(&mut vec, ix, pos);
     }
-    Ok(())
+    Ok(vec)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand;
+    use rand::Rng;
+
+    #[test]
+    fn encode_decode() {
+        let mut key = [0u8; 33];
+        rand::thread_rng().fill(&mut key[0..32]);
+        rand::thread_rng().fill(&mut key[32..]);
+        let words = convert_int_to_wordlist(&key);
+        println!("key: {:?}, words: {:?}", &key[..], words);
+        let key2 = convert_wordlist_to_int(&words[..]).expect("invalid");
+        assert_eq!(key.to_vec(), key2.to_vec());
+    }
 }

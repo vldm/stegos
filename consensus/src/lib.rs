@@ -1,5 +1,7 @@
+//! pBFT Consensus.
+
 //
-// Copyright (c) 2018 Stegos
+// Copyright (c) 2018 Stegos AG
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +23,14 @@
 
 #![deny(warnings)]
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+mod error;
+mod message;
+pub mod metrics;
+pub mod optimistic;
+pub mod protos;
+mod state;
+
+pub use crate::error::*;
+pub use crate::message::*;
+pub use crate::optimistic::ViewChangeCollector;
+pub use crate::state::*;

@@ -1,0 +1,68 @@
+syntax = "proto3";
+package stegos.crypto;
+
+message Pt {
+    bytes data = 1;
+}
+
+message Fr {
+    bytes data = 1;
+}
+
+message G1 {
+    bytes data = 1;
+}
+
+message G2 {
+    bytes data = 1;
+}
+
+message Hash {
+    bytes data = 1;
+}
+
+message SecretKey {
+    Fr skeyf = 1;
+}
+
+message PublicKey {
+    Pt point = 1;
+}
+
+message SchnorrSig {
+    Fr u = 1;
+    Pt K = 2;
+}
+
+message SecurePublicKey {
+    G2 point = 1;
+}
+
+message SecureSignature {
+    G1 point = 1;
+}
+
+message EncryptedKey {
+    // Inner structure is for backward-compatibility.
+    message Payload {
+        Pt ag = 1;
+        bytes ctxt = 2;
+    }
+    Payload payload = 1;
+    SchnorrSig sig = 2;
+}
+
+message BulletProof {
+    Pt vcmt = 1;
+    bytes proof = 2;
+}
+
+message DiceMixParticipantID {
+    stegos.crypto.SecurePublicKey pkey = 1;
+    bytes seed = 2;
+}
+
+message VRF {
+    stegos.crypto.Hash rand = 1;
+    stegos.crypto.G1 proof = 2;
+}

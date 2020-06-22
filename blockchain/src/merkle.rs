@@ -1,7 +1,7 @@
 //! A Merkle Tree.
 
 //
-// Copyright (c) 2018 Stegos
+// Copyright (c) 2018 Stegos AG
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@ use stegos_crypto::hash::{Hash, Hashable, Hasher};
 /// ```
 
 /// Merkle Tree Node.
+#[derive(Clone, Debug)]
 struct Node<T> {
     /// Hash value.
     hash: Hash,
@@ -87,11 +88,15 @@ pub enum MerkleError {
 /// 2**256 is more than anyone needed.
 type Height = u8;
 
+#[derive(Clone)]
 pub struct Merkle<T: Hashable> {
     root: Box<Node<T>>,
 }
 
 // -------------------------------------
+
+const INNER_PREFIX: &'static str = "Inner";
+const LEAF_PREFIX: &'static str = "Leaf";
 
 /// 2**32 is the maximal number of elements.
 type Path = u32;
@@ -124,7 +129,7 @@ fn expected_height(n: usize) -> Height {
 
 // -------------------------------------
 
-impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
+impl<T: Hashable + fmt::Debug> Merkle<T> {
     pub fn roothash(&self) -> &Hash {
         &self.root.hash
     }
@@ -142,6 +147,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
         assert_eq!(height, height1);
 
         let mut hasher = Hasher::new();
+        INNER_PREFIX.hash(&mut hasher);
         left.hash.hash(&mut hasher);
         right.hash.hash(&mut hasher);
         let hash = hasher.result();
@@ -168,6 +174,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
 
         // Pair node with itself if it doesn't have right sibling.
         let mut hasher = Hasher::new();
+        INNER_PREFIX.hash(&mut hasher);
         left.hash.hash(&mut hasher);
         left.hash.hash(&mut hasher);
         let hash = hasher.result();
@@ -184,11 +191,23 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
         heights.push(height + 1);
     }
 
+    /// Create a Merkle Tree and return the root hash.
+    pub fn root_hash_from_array(src: &[T]) -> Hash
+    where
+        T: Clone,
+    {
+        let tree = Self::from_array(src);
+        tree.roothash().clone()
+    }
+
     /// Create a Merkle Tree from an array.
     ///
     /// Returns the new tree.
     ///
-    pub fn from_array(src: &[T]) -> Merkle<T> {
+    pub fn from_array(src: &[T]) -> Merkle<T>
+    where
+        T: Clone,
+    {
         assert!(src.len() <= Path::max_value() as usize);
 
         // Special case - empty tree.
@@ -208,6 +227,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
 
         for value in src.iter() {
             let mut hasher = Hasher::new();
+            LEAF_PREFIX.hash(&mut hasher);
             value.hash(&mut hasher);
             let hash = hasher.result();
 
@@ -266,20 +286,12 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
                     left: Some(ref left),
                     value: None, // node is not a leaf
                     ..
-                }
-                    if left_direction =>
-                {
-                    left
-                } // going left, has the left subtree
+                } if left_direction => left, // going left, has the left subtree
                 Node {
                     right: Some(ref right),
                     value: None, // node is not a leaf
                     ..
-                }
-                    if !left_direction =>
-                {
-                    right
-                } // going right, has the right subtree
+                } if !left_direction => right, // going right, has the right subtree
                 Node {
                     left: None,
                     right: None,
@@ -438,6 +450,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
 
                 // Check hash
                 let mut hasher = Hasher::new();
+                INNER_PREFIX.hash(&mut hasher);
                 left.hash.hash(&mut hasher);
                 right.hash.hash(&mut hasher);
                 let check_hash = hasher.result();
@@ -460,6 +473,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
 
                 // Check hash.
                 let mut hasher = Hasher::new();
+                INNER_PREFIX.hash(&mut hasher);
                 left.hash.hash(&mut hasher);
                 left.hash.hash(&mut hasher);
                 let check_hash = hasher.result();
@@ -477,7 +491,11 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
                 value: Some(ref value),
                 ..
             } => {
-                let check_hash = Hash::digest(value);
+                // Check hash.
+                let mut hasher = Hasher::new();
+                LEAF_PREFIX.hash(&mut hasher);
+                value.hash(&mut hasher);
+                let check_hash = hasher.result();
                 if *hash != check_hash {
                     return Err(MerkleError::ValidationError(*hash, check_hash));
                 }
@@ -503,7 +521,10 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
     }
 
     /// A recursive helper for serialize().
-    fn serialize_r(r: &mut Vec<SerializedNode<T>>, node: &Node<T>) -> usize {
+    fn serialize_r(r: &mut Vec<SerializedNode<T>>, node: &Node<T>) -> usize
+    where
+        T: Clone,
+    {
         return match node {
             // An inner node with both subtrees
             Node {
@@ -585,14 +606,20 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
     }
 
     /// Linearize and serialize the tree.
-    pub fn serialize(&self) -> Vec<SerializedNode<T>> {
+    pub fn serialize(&self) -> Vec<SerializedNode<T>>
+    where
+        T: Clone,
+    {
         let mut r = Vec::<SerializedNode<T>>::new();
         Merkle::serialize_r(&mut r, &self.root);
         r
     }
 
     /// Create a Merkle Tree from serialized representation.
-    pub fn deserialize(snodes: &[SerializedNode<T>]) -> Result<Merkle<T>, MerkleError> {
+    pub fn deserialize(snodes: &[SerializedNode<T>]) -> Result<Merkle<T>, MerkleError>
+    where
+        T: Clone,
+    {
         if snodes.len() < 1 {
             return Err(MerkleError::InvalidStructure);
         }
@@ -675,7 +702,11 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
             } => {
                 // An inner node with only a left subtree
                 Merkle::fmt_r(f, &left, h + 1)?;
-                write!(f, "{}: Node({}, l={}, r=None)\n", h, node.hash, left.hash)
+                write!(
+                    f,
+                    "{}: Node({:?}, l={:?}, r=None)\n",
+                    h, node.hash, left.hash
+                )
             }
             Node {
                 left: None,
@@ -684,7 +715,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
                 ..
             } => {
                 // A leaf
-                write!(f, "{}: Leaf({}, value={})\n", h, &node.hash, &value)
+                write!(f, "{}: Leaf({:?}, value={:?})\n", h, &node.hash, &value)
             }
             Node {
                 left: None,
@@ -693,7 +724,7 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
                 ..
             } => {
                 // An empty leaf - can only happen if tree is empty
-                write!(f, "{}: Empty({})\n", h, &node.hash)
+                write!(f, "{:?}: Empty({:?})\n", h, &node.hash)
             }
             _ => unreachable!(), // No more cases
         }
@@ -706,16 +737,9 @@ impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Merkle<T> {
     }
 }
 
-impl<T: Hashable + Clone + fmt::Debug + fmt::Display> fmt::Debug for Merkle<T> {
+impl<T: Hashable + fmt::Debug> fmt::Debug for Merkle<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.fmt(f)
-    }
-}
-
-impl<T: Hashable + Clone + fmt::Debug + fmt::Display> Clone for Merkle<T> {
-    fn clone(&self) -> Merkle<T> {
-        let serialized = self.serialize();
-        Merkle::deserialize(&serialized).unwrap()
     }
 }
 
@@ -783,8 +807,8 @@ pub mod tests {
         // Check structure
         debug!("Tree: {:?}", tree);
         assert_eq!(
-            tree.roothash().into_hex(),
-            "295cd1698c6ac5bd804a09e50f19f8549475e52db1c6ebd441ed0c7b256e1ddf"
+            tree.roothash().to_hex(),
+            "49df10d89947b56ab336a751c23454b61f276392ade7b902b19b7c17f5a537e6"
         );
 
         // Check hashes
@@ -807,7 +831,11 @@ pub mod tests {
         assert_eq!(tree.root.value, Some(data[0]));
 
         // Root hash must be the same as data[0].hash()
-        assert_eq!(*tree.roothash(), Hasher::digest(&data[0]));
+        let mut expected_roothash = Hasher::new();
+        LEAF_PREFIX.hash(&mut expected_roothash);
+        data[0].hash(&mut expected_roothash);
+        let expected_roothash = expected_roothash.result();
+        assert_eq!(*tree.roothash(), expected_roothash);
 
         // Check paths
         let paths = tree
@@ -857,8 +885,8 @@ pub mod tests {
         // Check structure
         debug!("Tree: {:?}", tree);
         assert_eq!(
-            tree.roothash().into_hex(),
-            "9cfc92fdc167efd8971ea01910586d551ab6f8a9bb9d56ee791fad27c0ec8da0"
+            tree.roothash().to_hex(),
+            "7f0d4c7739a71cf3757a1d5a1de25bd30b6d2ad8d96ea1ad870db84d76268a06"
         );
 
         // Check hashes
@@ -997,10 +1025,10 @@ pub mod tests {
         simple_logger::init_with_level(log::Level::Debug).unwrap_or_default();
         let data: [u32; 3] = [1, 2, 3];
         let node12_hash =
-            Hash::try_from_hex("fc484dcaf94a6a6e0b9d78fb42527f8b55555561a45eb34ed7fa58150f823df7")
+            Hash::try_from_hex("8b0a2385d83c8bf7be27e59996f7d881d3bf1fc6606f81ce600b753ad94192a2")
                 .unwrap();
         let node34_hash =
-            Hash::try_from_hex("02ebbd3fdf4b0c3d3bca09542b9b4810cd8a9c75fbc0cd4bb60d88d402da815f")
+            Hash::try_from_hex("8b0a2385d83c8bf7be27e59996f7d881d3bf1fc6606f81ce600b753ad94192a2")
                 .unwrap();
 
         //
@@ -1015,8 +1043,16 @@ pub mod tests {
         }
         match tree.validate() {
             Err(MerkleError::ValidationError(expected, got)) => {
-                assert_eq!(expected, Hash::digest(&1u32));
-                assert_eq!(got, Hash::digest(&0u32));
+                let mut expected2 = Hasher::new();
+                LEAF_PREFIX.hash(&mut expected2);
+                1u32.hash(&mut expected2);
+                let expected2 = expected2.result();
+                assert_eq!(expected, expected2);
+                let mut got2 = Hasher::new();
+                LEAF_PREFIX.hash(&mut got2);
+                0u32.hash(&mut got2);
+                let got2 = got2.result();
+                assert_eq!(got, got2);
             }
             _ => unreachable!(),
         }
@@ -1191,8 +1227,16 @@ pub mod tests {
         serialized[0].value = Some(0);
         match Merkle::deserialize(&serialized) {
             Err(MerkleError::ValidationError(expected, got)) => {
-                assert_eq!(expected, Hash::digest(&1u32));
-                assert_eq!(got, Hash::digest(&0u32));
+                let mut expected2 = Hasher::new();
+                LEAF_PREFIX.hash(&mut expected2);
+                1u32.hash(&mut expected2);
+                let expected2 = expected2.result();
+                assert_eq!(expected, expected2);
+                let mut got2 = Hasher::new();
+                LEAF_PREFIX.hash(&mut got2);
+                0u32.hash(&mut got2);
+                let got2 = got2.result();
+                assert_eq!(got, got2);
             }
             _ => unreachable!(),
         };

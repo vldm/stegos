@@ -1,31 +1,48 @@
 [package]
 name = "stegos_node"
-version = "0.1.0"
-authors = ["Stegos AG <info@stegos.cc>"]
+version = "1.0.0"
+authors = ["Stegos AG <info@stegos.com>"]
 build = "build.rs"
+categories = ["cryptography", "network-programming"]
 edition = "2018"
+homepage = "https://stegos.com"
+keywords = ["stegos", "blockchain", "cryptocurrency", "crypto", "privacy"]
+license = "MIT"
+links = "stegos_node"
+repository = "https://github.com/stegos/stegos"
+description = "Stegos - Blockchain Node"
 
 [dependencies]
-stegos_config = { path = "../config" }
-stegos_crypto = { path = "../crypto" }
-stegos_blockchain = { path = "../blockchain" }
-stegos_network = { path = "../network" }
-stegos_keychain = { path = "../keychain" }
-log = "0.4"
+stegos_blockchain = { version = "1.0.0", path = "../blockchain" }
+stegos_consensus = { version = "1.0.0", path = "../consensus" }
+stegos_crypto = { version = "1.0.0", path = "../crypto" }
+stegos_network = { version = "1.0.0", path = "../network"}
+stegos_txpool = { version = "1.0.0", path = "../txpool" }
+stegos_replication = { version = "1.0.0", path = "../replication" }
+stegos_serialization = { version = "1.0.0", path = "../serialization" }
+bit-vec = "0.6"
+clap = "2.32"
 failure = "0.1"
-futures = "0.1"
-tokio-timer = "0.2"
-chrono = "0.4"
-protobuf = "2.2"
+futures = "0.3"
+lazy_static = "1.2"
+prometheus = "0.7"
+linked-hash-map = "0.5"
+log = "0.4"
+protobuf = "2.6"
+rand = "0.7.0"
+rand_core = "0.5"
+rand_isaac = "0.2.0"
+rayon = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-rand = "0.6"
-simple_logger = "1.0"
-clap = "2.32"
+simple_logger = "1.2"
+assert_matches = "1.3.0"
+tempdir = "0.3"
+colored = "1.6"
+humantime = "1.2"
+humantime-serde = "0.1"
+pin-utils = "0.1.0-alpha.4"
+tokio = "0.2.13"
 
 [build-dependencies]
-protobuf-codegen-pure = "2.2"
-
-[[bin]]
-name = "bootstrap"
-path = "src/bootstrap.rs"
+stegos_serialization = { version = "1.0.0", path = "../serialization" }

@@ -1,26 +1,68 @@
 [package]
 name = "stegos_crypto"
-version = "0.1.0"
+version = "1.0.0"
+authors = ["Stegos AG <info@stegos.com>"]
+build = "build.rs"
+categories = ["cryptography"]
 edition = "2018"
-authors = ["Stegos AG <info@stegos.cc>"]
+homepage = "https://stegos.com"
+keywords = ["stegos", "blockchain", "cryptocurrency", "crypto", "privacy"]
+license = "MIT"
+links = "stegos_crypto"
+repository = "https://github.com/stegos/stegos"
+description = "Stegos - Crypto Library"
 
 [dependencies]
+stegos_serialization = { version = "1.0.0", path = "../serialization" }
+bit-vec = "0.6"
+bech32 = "0.7"
+failure = "0.1"
+gmp-mpfr-sys = { version = "1.1", git = "https://github.com/stegos/gmp-mpfr-sys.git", branch = "stegos",optional=true, default-features = false, features = ["cnotest", "mpfr"] }
+flint-sys = { version = "0.1", git = "https://github.com/stegos/flint-sys.git", branch = "stegos", optional=true}
 hex = "0.3"
 lazy_static = "1.1"
-parking_lot = "0.6"
-rand = "0.6"
-rust-crypto = "0.2"
-rust-gmp = "0.5"
-rust-libpbc = { git = "https://github.com/stegos/rust-pbcintf.git" }
-sha3 = "0.8"
 log = "0.4"
-failure = "0.1"
+protobuf = "2.6"
+rand = "0.6"
+old_rand = { package = "rand", version = "0.4" }
+rayon = "1.0"
+aes-ctr = "0.3.0"
+sha3 = "0.8"
+clear_on_drop = "0.2"
+serde = "1.0"
+serde_derive = "1.0"
+paired = "0.15"
+ff = "0.4"
+curve25519-dalek = "1"
+merlin = "1"
+ristretto_bulletproofs = { package = "bulletproofs", version = "1" }
+vdf_field = { path = "stubs/vdf_field" }
+clap = "2.32"
+base58check = {version="0.0.1", optional=true}
 
-[[example]]
+[dev-dependencies]
+serde_json = "1.0"
+simple_logger = "1.2"
+criterion = "0.2"
+
+[build-dependencies]
+issue-47048-fix = "0.1"
+stegos_serialization = { version = "1.0.0", path = "../serialization" }
+cc = "1.0"
+
+[[bench]]
 name = "bulletproofs"
+harness = false
 
-[[example]]
+[[bench]]
+name = "scc"
+harness = false
+
+[[bench]]
 name = "pbc"
+harness = false
 
-[[example]]
-name = "curve1174"
+[features]
+default = ["flint",]
+flint= ["flint-sys", "gmp-mpfr-sys"]
+old_crypto= ["base58check"]
